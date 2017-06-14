@@ -40,66 +40,63 @@ class Coin extends CI_Controller {
         $subindo  = 0;
         $descendo = 0;
 
-        $ultimas = $this->cotacaoM->get_last(120);
+        $ultimas = $this->cotacaoM->get_last(240);
+        $ultimas = array_reverse($ultimas);
+
         $contador = 0;
         foreach ($ultimas as $cotacao) {
             $ultimo_valor = (int) ($contador == 0) ? $ultimas[0]->high24hr : $ultimas[$contador-1]->last;
             if ($cotacao->last > $ultimo_valor) {
                 $subindo++;
-                echo $cotacao->last . ' > ' . $ultimo_valor . ' -- subindo: ' . $subindo . '<br>';
+                echo '<span style="color:green">' . $cotacao->last . ' > ' . $ultimo_valor . ' -- subindo: ' . $subindo . '</span><br>';
             } else if ($cotacao->last < $ultimo_valor) {
                 $descendo++;
-                echo $cotacao->last . ' < ' . $ultimo_valor . ' -- descendo: ' . $descendo . '<br>';
+                echo '<span style="color:red; font-weight:bold;">' . $cotacao->last . ' < ' . $ultimo_valor . ' -- descendo: ' . $descendo . '</span><br>';
             }
             $valor_final = $cotacao->last;
             $contador++;
         }
-        echo '<hr>';
+        echo '----------------------------------------------------<br>';
         $amount_wallet = $this->walletM->get_by_id(1);
-        if ($subindo > $descendo) {
+        if ($subindo > $descendo && $ultimas[0]->last <= $valor_final) {
             $percent = $valor_final * 0.02;
             if (($valor_final - $percent) > $ultimas[0]->last) {
                 echo 'Hora de vender...'  . '<br>';
-                echo 'Primeiro valor: ' . $ultimas[0]->last . '<br>';
-                echo 'Último valor: ' . $valor_final . '<br>';
-                echo '%' . $percent;
-                // Se tiver mais de 10 moedas na carteira
-                if ($amount_wallet->amount_coin >= 10) {
+                // Se tiver mais de 2 moedas na carteira
+                if ($amount_wallet->amount_coin >= 2) {
                     $insert = $this->tradeM->insert(
                         [
                             'value'  => $valor_final,
-                            'amount' => 10,
+                            'amount' => 2,
                             'type'   => 'Vender'
                         ]
                     );
-                    $update_wallet = $this->walletM->update(1, ['amount_coin' => ($amount_wallet->amount_coin - 10), 'amount_usd' => ($amount_wallet->amount_usd + ($valor_final * 10))]);
+                    $update_wallet = $this->walletM->update(1, ['amount_coin' => ($amount_wallet->amount_coin - 2), 'amount_usd' => ($amount_wallet->amount_usd + ($valor_final * 2))]);
                 }
             }
-        } else if ($descendo > $subindo) {
+        } else if ($descendo > $subindo && $ultimas[0]->last >= $valor_final) {
             $percent = $valor_final * 0.02;
             if (($valor_final + $percent) < $ultimas[0]->last) {
                 echo 'Hora de comprar...' . '<br>';
-                echo 'Primeiro valor: ' . $ultimas[0]->last . '<br>';
-                echo 'Último valor: ' . $valor_final . '<br>';
-                echo '%' . $percent;
                 // Se tiver dinheiro suficiente na carteira
-                if ($amount_wallet->amount_usd >= ($valor_final * 10)) {
+                if ($amount_wallet->amount_usd >= ($valor_final * 2)) {
                     $insert = $this->tradeM->insert(
                         [
                             'value'  => $valor_final,
-                            'amount' => 10,
+                            'amount' => 2,
                             'type'   => 'Comprar'
                         ]
                     );
-                   $update_wallet = $this->walletM->update(1, ['amount_coin' => ($amount_wallet->amount_coin + 10), 'amount_usd' => ($amount_wallet->amount_usd - ($valor_final * 10))]);
+                   $update_wallet = $this->walletM->update(1, ['amount_coin' => ($amount_wallet->amount_coin + 2), 'amount_usd' => ($amount_wallet->amount_usd - ($valor_final * 2))]);
                 }
             }
         } else {
             echo 'Só manter...' . '<br>';
         }
         // echo 'Maior valor de 24 horas: ' . $ultimas[0]->high24hr . '<br>';
-        echo '<hr>';
+        echo 'Totais: Descendo: ' . $descendo . ' - Subindo: ' . $subindo . '<br>';
         echo 'Primeiro valor: ' . $ultimas[0]->last . '<br>';
-        echo 'Valor agora: ' . $valor_final . '<br>';
+        echo 'Último valor: ' . $valor_final . '<br>';
+        echo 'Diferença de %' . $percent;
     }
 }
